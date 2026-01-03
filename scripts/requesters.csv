@@ -1,0 +1,4 @@
+username,password,organisation_name,role,email
+employer1,testpass123,Acme Pte Ltd,employer,employer1@example.com
+teacher1,testpass123,Example Secondary School,teacher,teacher1@example.com
+admin1,testpass123,Identity Admin Office,admin,admin1@example.com

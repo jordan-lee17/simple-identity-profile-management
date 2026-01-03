@@ -1,0 +1,10 @@
+person_key,type,value,sensitivity_level
+p1,legal,Jordan Lee Jun Loong,high
+p1,preferred,Jordan Lee,low
+p1,professional,Mr Lee,medium
+p2,legal,Alicia Tan Wei Ling,high
+p2,preferred,Alicia,low
+p2,professional,Ms Tan,medium
+p3,legal,Muhammad Haziq bin Ahmad,high
+p3,preferred,Haziq,low
+p3,professional,Mr Haziq,medium

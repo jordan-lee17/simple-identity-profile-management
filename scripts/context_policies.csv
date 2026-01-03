@@ -1,0 +1,5 @@
+context_name,allowed_name_types,required_role,additional_rules
+school,"[""preferred""]",teacher,
+job,"[""legal"",""professional""]",employer,
+public,"[""preferred""]",default,
+government,"[""legal""]",government,
