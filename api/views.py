@@ -1,55 +1,69 @@
+from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.shortcuts import get_object_or_404
-from .models import Person, Requester
+from .models import *
+from .services.abac import evaluate_abac
 
 class IdentityView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request, person_id):
-        context = request.GET.get("context", "default")
+        context = request.GET.get("context", "default").strip().lower()
+
         person = get_object_or_404(Person, id=person_id)
 
-        requester = get_object_or_404(Requester, user=request.user)
-        role = requester.role  # <- comes from DB, not ?role=
+        # Get the Requester linked to the authenticated user
+        try:
+            requester = request.user.requester
+        except Requester.DoesNotExist:
+            return Response({
+                "detail": "Requester profile not found for this user."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        name_records = list(person.name_records.all())
 
-        return Response({
-            "person_id": person_id,
-            "context_used": context,
-            "requester": request.user.username,
-            "requester_role": role,
-            "result": {"name": f"Person {person_id}"}
-        })
+        decision = evaluate_abac(
+            requester=requester,
+            context=context,
+            name_records=name_records,
+        )
 
+        # Build response fields
+        result = {}
+        fields_returned = []
 
-# class IdentityView(APIView):
+        for record in decision.allowed:
+            key = f"{record.type}_name"
+            result[key] = record.value
+            fields_returned.append(record.type)
 
-#     def get(self, request, person_id):
+        # Return 403 if nothing allowed
+        if not result:
+            return Response(
+                {
+                    "person_id": person_id,
+                    "context_used": context,
+                    "requester": request.user.username,
+                    "requester_role": requester.role,
+                    "result": {},
+                    "denied_reason": decision.denied_reason,
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
-#         requester = request.GET.get("role", "default")
-#         context = request.GET.get("context", "default")
-
-#         person = get_object_or_404(Person, id=person_id)
-
-#         # SIMPLE ABAC PROTOTYPE LOGIC
-#         data = {}
-
-#         if requester.lower() == "teacher":
-#             data["name"] = person.preferred_name
-
-#         elif requester.lower() == "employer":
-#             data["name"] = person.legal_name
-#             data["title"] = person.professional_title
-
-#         else:
-#             data["name"] = person.legal_name
-
-#         return Response({
-#             "person_id": person_id,
-#             "context_used": context,
-#             "role": requester,
-#             "result": data
-#         })
+        return Response(
+            {
+                "person_id": person_id,
+                "context_used": context,
+                "requester": request.user.username,
+                "requester_role": requester.role,
+                "result": result,
+                "fields_returned": fields_returned,
+            },
+            status=status.HTTP_200_OK,
+        )
