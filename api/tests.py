@@ -1,4 +1,5 @@
 from django.urls import reverse
+from rest_framework import status
 from rest_framework.test import APITestCase
 from .models import *
 from .model_factories import *
@@ -162,6 +163,108 @@ class ABACServiceTests(APITestCase):
         allowed_types = [r.type for r in decision.allowed]
 
         self.assertEqual(allowed_types, ["legal"])
+
+
+class AdminContextPolicyAPITests(APITestCase):
+    def setUp(self):
+        self.url_list = reverse("admin-policy-list")
+
+        self.admin_user = UserFactory(username="admin1")
+        RequesterFactory(user=self.admin_user, role="admin", organisation_name="GovTech")
+
+        self.non_admin_user = UserFactory(username="teacher1")
+        RequesterFactory(user=self.non_admin_user, role="teacher", organisation_name="School A")
+
+    def test_admin_policy_list_requires_auth(self):
+        res = self.client.get(self.url_list)
+        self.assertIn(res.status_code, [401, 403])
+
+    def test_non_admin_cannot_list_policies(self):
+        self.client.force_authenticate(user=self.non_admin_user)
+        res = self.client.get(self.url_list)
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_can_list_policies(self):
+        ContextPolicyFactory(context_name="school")
+        ContextPolicyFactory(context_name="job")
+
+        self.client.force_authenticate(user=self.admin_user)
+        res = self.client.get(self.url_list)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertGreaterEqual(len(res.data), 2)
+
+    def test_admin_can_create_policy(self):
+        self.client.force_authenticate(user=self.admin_user)
+
+        payload = {
+            "context_name": "hospital",
+            "allowed_name_types": ["legal"],
+            "required_role": "doctor",
+            "additional_rules": {"allow_high": False},
+        }
+
+        res = self.client.post(self.url_list, payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["context_name"], "hospital")
+
+    def test_admin_create_policy_invalid_payload(self):
+        self.client.force_authenticate(user=self.admin_user)
+
+        # Missing required fields
+        payload = {"context_name": "invalid_only_name"}
+        res = self.client.post(self.url_list, payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_admin_can_update_policy_put(self):
+        self.client.force_authenticate(user=self.admin_user)
+
+        policy = ContextPolicyFactory(
+            context_name="school",
+            allowed_name_types=["preferred"],
+            required_role="teacher",
+            additional_rules={"allow_high": False},
+        )
+
+        url_detail = reverse("admin-policy-detail", kwargs={"pk": policy.id})
+        payload = {
+            "context_name": "school",
+            "allowed_name_types": ["preferred", "legal"],
+            "required_role": "teacher",
+            "additional_rules": {"allow_high": True},
+        }
+
+        res = self.client.put(url_detail, payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn("legal", res.data["allowed_name_types"])
+        self.assertTrue(res.data["additional_rules"]["allow_high"])
+
+    def test_admin_can_patch_policy(self):
+        self.client.force_authenticate(user=self.admin_user)
+
+        policy = ContextPolicyFactory(
+            context_name="job",
+            allowed_name_types=["legal"],
+            required_role="employer",
+            additional_rules={"allow_high": False},
+        )
+
+        url_detail = reverse("admin-policy-detail", kwargs={"pk": policy.id})
+        res = self.client.patch(url_detail, {"additional_rules": {"allow_high": True}}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertTrue(res.data["additional_rules"]["allow_high"])
+
+    def test_admin_can_delete_policy(self):
+        self.client.force_authenticate(user=self.admin_user)
+
+        policy = ContextPolicyFactory(context_name="temp_context")
+        url_detail = reverse("admin-policy-detail", kwargs={"pk": policy.id})
+
+        res = self.client.delete(url_detail)
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Verify it is gone
+        res2 = self.client.get(url_detail)
+        self.assertEqual(res2.status_code, status.HTTP_404_NOT_FOUND)
 
 # Test IdentityView end to end
 class IdentityAPITests(APITestCase):
