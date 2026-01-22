@@ -5,8 +5,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.shortcuts import get_object_or_404
 from .models import *
+from .permissions import IsAdminRequester
+from .serializers import ContextPolicySerializer
 from .services.abac import evaluate_abac
 
+# Identity retrieval
 class IdentityView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -67,3 +70,49 @@ class IdentityView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+    
+# Admin context policy management
+class AdminContextPolicyListCreateView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated, IsAdminRequester]
+
+    def get(self, request):
+        policies = ContextPolicy.objects.all().order_by("context_name")
+        return Response(ContextPolicySerializer(policies, many=True).data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        serializer = ContextPolicySerializer(data=request.data)
+        if serializer.is_valid():
+            policy = serializer.save()
+            return Response(ContextPolicySerializer(policy).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AdminContextPolicyDetailView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated, IsAdminRequester]
+
+    def get(self, request, pk: int):
+        policy = get_object_or_404(ContextPolicy, pk=pk)
+        return Response(ContextPolicySerializer(policy).data, status=status.HTTP_200_OK)
+
+    def put(self, request, pk: int):
+        policy = get_object_or_404(ContextPolicy, pk=pk)
+        serializer = ContextPolicySerializer(policy, data=request.data)
+        if serializer.is_valid():
+            policy = serializer.save()
+            return Response(ContextPolicySerializer(policy).data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request, pk: int):
+        policy = get_object_or_404(ContextPolicy, pk=pk)
+        serializer = ContextPolicySerializer(policy, data=request.data, partial=True)
+        if serializer.is_valid():
+            policy = serializer.save()
+            return Response(ContextPolicySerializer(policy).data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk: int):
+        policy = get_object_or_404(ContextPolicy, pk=pk)
+        policy.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
