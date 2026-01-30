@@ -8,6 +8,7 @@ sys.path.append('C:/Users/jorda/Desktop/School/FYP/identity-manager/identity_man
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "identity_manager.settings")
 django.setup()
 
+from django.db import connection
 from django.contrib.auth.models import User
 from api.models import *
 
@@ -83,11 +84,20 @@ with open(name_record_file) as csv_file:
 # Clear existing data
 # Keep superusers
 User.objects.exclude(is_superuser=True).delete()
-AuditLog.objects.all().delete()
-ContextPolicy.objects.all().delete()
-NameRecord.objects.all().delete()
-Person.objects.all().delete()
-Requester.objects.all().delete()
+# AuditLog.objects.all().delete()
+# ContextPolicy.objects.all().delete()
+# NameRecord.objects.all().delete()
+# Person.objects.all().delete()
+# Requester.objects.all().delete()
+with connection.cursor() as cursor:
+    cursor.execute("""
+        TRUNCATE TABLE
+            api_namerecord,
+            api_person,
+            api_requester,
+            api_contextpolicy
+        RESTART IDENTITY CASCADE;
+    """)
 
 # Populate Users + Requesters
 for r in user_rows:
@@ -121,7 +131,7 @@ for key in person_keys:
 # Populate NameRecords
 for r in name_rows:
     name_record = NameRecord.objects.create(
-        person=person_map[key],
+        person=person_map[r["person_key"]],
         type=r["type"],
         value=r["value"],
         sensitivity_level=r["sensitivity_level"],
