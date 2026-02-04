@@ -164,7 +164,7 @@ class ABACServiceTests(APITestCase):
 
         self.assertEqual(allowed_types, ["legal"])
 
-
+# Test admin policies api
 class AdminContextPolicyAPITests(APITestCase):
     def setUp(self):
         self.url_list = reverse("admin-policy-list")
@@ -266,6 +266,91 @@ class AdminContextPolicyAPITests(APITestCase):
         res2 = self.client.get(url_detail)
         self.assertEqual(res2.status_code, status.HTTP_404_NOT_FOUND)
 
+# Test admin audit log API
+class AdminAuditLogAPITests(APITestCase):
+    def setUp(self):
+        self.url = reverse("admin-auditlog-list")
+
+        self.admin_user = UserFactory(username="admin1")
+        RequesterFactory(user=self.admin_user, role="admin", organisation_name="GovTech")
+
+        self.non_admin_user = UserFactory(username="teacher1")
+        RequesterFactory(user=self.non_admin_user, role="teacher", organisation_name="School A")
+
+        # Make 1 sample log
+        person = PersonFactory()
+        requester = RequesterFactory(role="admin")
+        AuditLog.objects.create(
+            requester=requester,
+            person=person,
+            context_used="school",
+            fields_returned=["preferred"],
+            decision="ALLOW",
+            denied_reason=None,
+        )
+
+    def test_admin_audit_logs_requires_auth(self):
+        res = self.client.get(self.url)
+        self.assertIn(res.status_code, [401, 403])
+
+    def test_non_admin_cannot_list_audit_logs(self):
+        self.client.force_authenticate(user=self.non_admin_user)
+        res = self.client.get(self.url)
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_can_list_audit_logs(self):
+        self.client.force_authenticate(user=self.admin_user)
+        res = self.client.get(self.url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertGreaterEqual(len(res.data), 1)
+
+# Test audit log
+class IdentityAuditLogTests(APITestCase):
+    def setUp(self):
+        # Policies
+        ContextPolicyFactory(context_name="school", required_role="teacher", allowed_name_types=["preferred"])
+        ContextPolicyFactory(context_name="job", required_role="employer", allowed_name_types=["legal", "professional"])
+
+        # Name records
+        self.person = PersonFactory()
+        NameRecordFactory(person=self.person, type="legal", value="Jordan Lee", sensitivity_level="low")
+        NameRecordFactory(person=self.person, type="preferred", value="Jordan", sensitivity_level="low")
+        NameRecordFactory(person=self.person, type="professional", value="Jordan Lee (Intern)", sensitivity_level="low")
+
+        # Users + Requesters
+        self.teacher_user = UserFactory(username="teacher1")
+        RequesterFactory(user=self.teacher_user, role="teacher", organisation_name="School A")
+
+        self.employer_user = UserFactory(username="employer1")
+        RequesterFactory(user=self.employer_user, role="employer", organisation_name="Company B")
+
+        self.url = reverse("identity", kwargs={"person_id": self.person.id})
+
+    def test_allow_creates_audit_log(self):
+        self.client.force_authenticate(user=self.teacher_user)
+
+        res = self.client.get(self.url + "?context=school")
+        self.assertEqual(res.status_code, 200)
+
+        self.assertEqual(AuditLog.objects.count(), 1)
+        log = AuditLog.objects.first()
+        self.assertEqual(log.person_id, self.person.id)
+        self.assertEqual(log.context_used, "school")
+        self.assertEqual(log.decision, "ALLOW")
+        self.assertIn("preferred", log.fields_returned)
+
+    def test_deny_creates_audit_log(self):
+        self.client.force_authenticate(user=self.employer_user)
+
+        res = self.client.get(self.url + "?context=school")
+        self.assertEqual(res.status_code, 403)
+
+        self.assertEqual(AuditLog.objects.count(), 1)
+        log = AuditLog.objects.first()
+        self.assertEqual(log.decision, "DENY")
+        self.assertEqual(log.fields_returned, [])
+        self.assertTrue(log.denied_reason)
+
 # Test IdentityView end to end
 class IdentityAPITests(APITestCase):
     def setUp(self):
@@ -283,7 +368,7 @@ class IdentityAPITests(APITestCase):
                              required_role="bank_staff",
                              allowed_name_types=["legal"])
 
-        # Person + name records
+        # Name records
         self.person = PersonFactory()
         NameRecordFactory(person=self.person, 
                           type="legal", 
@@ -361,7 +446,7 @@ class IdentityAPITests(APITestCase):
     def test_role_mismatch_returns_403(self):
         self.client.force_authenticate(user=self.employer_user)
 
-        # employer requesting "school" context (requires teacher)
+        # Employer requesting "school" context (requires teacher)
         response = self.client.get(self.url + "?context=school")
         self.assertEqual(response.status_code, 403)
         self.assertIn("denied_reason", response.data)
