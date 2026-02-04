@@ -6,7 +6,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.shortcuts import get_object_or_404
 from .models import *
 from .permissions import IsAdminRequester
-from .serializers import ContextPolicySerializer
+from .serializers import ContextPolicySerializer, AuditLogSerializer
 from .services.abac import evaluate_abac
 
 # Identity retrieval
@@ -47,6 +47,15 @@ class IdentityView(APIView):
 
         # Return 403 if nothing allowed
         if not result:
+            AuditLog.objects.create(
+                requester=requester,
+                person=person,
+                context_used=context,
+                fields_returned=[],
+                decision="DENY",
+                denied_reason=decision.denied_reason,
+            )
+
             return Response(
                 {
                     "person_id": person_id,
@@ -58,6 +67,16 @@ class IdentityView(APIView):
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
+        
+        # Allowed case
+        AuditLog.objects.create(
+            requester=requester,
+            person=person,
+            context_used=context,
+            fields_returned=fields_returned,
+            decision="ALLOW",
+            denied_reason=None,
+        )
 
         return Response(
             {
@@ -116,3 +135,27 @@ class AdminContextPolicyDetailView(APIView):
         policy = get_object_or_404(ContextPolicy, pk=pk)
         policy.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
+class AdminAuditLogListView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated, IsAdminRequester]
+
+    def get(self, request):
+        logs = AuditLog.objects.all().order_by("-timestamp")
+
+        # Filters
+        requester_id = request.GET.get("requester_id")
+        person_id = request.GET.get("person_id")
+        context_used = request.GET.get("context")
+        decision = request.GET.get("decision")
+
+        if requester_id:
+            logs = logs.filter(requester_id=requester_id)
+        if person_id:
+            logs = logs.filter(person_id=person_id)
+        if context_used:
+            logs = logs.filter(context_used=context_used.strip().lower())
+        if decision:
+            logs = logs.filter(decision=decision.strip().upper())
+
+        return Response(AuditLogSerializer(logs, many=True).data, status=status.HTTP_200_OK)

@@ -13,4 +13,6 @@ urlpatterns = [
     # Admin policy endpoints
     path("api/admin/policies/", AdminContextPolicyListCreateView.as_view(), name="admin-policy-list"),
     path("api/admin/policies/<int:pk>/", AdminContextPolicyDetailView.as_view(), name="admin-policy-detail"),
+    # Admin audit log endpoint
+    path("api/admin/audit-logs/", AdminAuditLogListView.as_view(), name="admin-auditlog-list"),
 ]
