@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+import uuid
 
 # Create your models here.
 class Person(models.Model):
@@ -49,9 +50,18 @@ class ContextPolicy(models.Model):
         return self.context_name
     
 class AuditLog(models.Model):
+    DECISIONS = [
+        ("ALLOW", "ALLOW"),
+        ("DENY", "DENY"),
+    ]
+
+    request_id = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
     requester = models.ForeignKey(Requester, on_delete=models.CASCADE)
+    requester_role = models.CharField(max_length=100)
     person = models.ForeignKey(Person, on_delete=models.CASCADE)
     context_used = models.CharField(max_length=100)
+    decision = models.CharField(max_length=10, choices=DECISIONS)
+    denied_reason = models.CharField(max_length=255, blank=True, null=True)
     fields_returned = models.JSONField(default=list)
     timestamp = models.DateTimeField(auto_now_add=True)
 
