@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 import uuid
 
 # Create your models here.
@@ -65,6 +66,19 @@ class AuditLog(models.Model):
     fields_returned = models.JSONField(default=list)
     timestamp = models.DateTimeField(auto_now_add=True)
 
+    # Tamper-evident fields
+    prev_signature = models.CharField(max_length=64, blank=True, null=True)
+    signature = models.CharField(max_length=64, blank=True, null=True)
+
     def __str__(self):
         return f"Audit {self.id} - requester {self.requester_id} person {self.person_id}"
+    
+    def save(self, *args, **kwargs):
+        # Append only. Block updates
+        if self.pk is not None:
+            raise ValidationError("Audit logs are append-only and cannot be modified.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Audit logs are append-only and cannot be deleted.")
 

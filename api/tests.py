@@ -1,9 +1,11 @@
 from django.urls import reverse
+from django.core.exceptions import ValidationError
 from rest_framework import status
 from rest_framework.test import APITestCase
 from .models import *
 from .model_factories import *
 from .services.abac import evaluate_abac
+from .services.audit import verify_audit_log_entry
 
 # Create your tests here.
 
@@ -303,6 +305,75 @@ class AdminAuditLogAPITests(APITestCase):
         res = self.client.get(self.url)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertGreaterEqual(len(res.data), 1)
+
+# Test audit logging security
+class AuditLogSecurityTests(APITestCase):
+    def setUp(self):
+        self.admin_user = UserFactory(username="admin_audit")
+        self.admin_req = RequesterFactory(user=self.admin_user, role="admin", organisation_name="GovTech")
+
+        self.person = PersonFactory()
+
+    def test_audit_log_cannot_be_updated_via_model_save(self):
+        log = AuditLog.objects.create(
+            requester=self.admin_req,
+            person=self.person,
+            context_used="school",
+            fields_returned=["preferred"],
+            decision="ALLOW",
+            denied_reason=None,
+        )
+
+        with self.assertRaises(ValidationError):
+            log.context_used = "job"
+            log.save()
+
+    def test_audit_log_cannot_be_deleted(self):
+        log = AuditLog.objects.create(
+            requester=self.admin_req,
+            person=self.person,
+            context_used="school",
+            fields_returned=[],
+            decision="DENY",
+            denied_reason="test",
+        )
+
+        with self.assertRaises(ValidationError):
+            log.delete()
+    
+    def test_audit_log_signature_detects_tampering(self):
+        log = AuditLog.objects.create(
+            requester=self.admin_req,
+            person=self.person,
+            context_used="school",
+            fields_returned=["preferred"],
+            decision="ALLOW",
+            denied_reason=None,
+            prev_signature=None,
+        )
+
+        # Set a correct signature for baseline
+        from .services.audit import compute_audit_signature, build_audit_payload
+        payload = build_audit_payload(
+            requester_id=log.requester_id,
+            person_id=log.person_id,
+            context_used=log.context_used,
+            fields_returned=log.fields_returned,
+            decision=log.decision,
+            denied_reason=log.denied_reason,
+            timestamp_iso=log.timestamp.isoformat(),
+        )
+        sig = compute_audit_signature(payload=payload, prev_signature=None)
+        AuditLog.objects.filter(pk=log.pk).update(signature=sig)
+
+        log.refresh_from_db()
+        self.assertTrue(verify_audit_log_entry(log))
+
+        # Tamper in DB
+        AuditLog.objects.filter(pk=log.pk).update(context_used="job")
+        log.refresh_from_db()
+
+        self.assertFalse(verify_audit_log_entry(log))
 
 # Test audit log
 class IdentityAuditLogTests(APITestCase):

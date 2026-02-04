@@ -8,6 +8,7 @@ from .models import *
 from .permissions import IsAdminRequester
 from .serializers import ContextPolicySerializer, AuditLogSerializer
 from .services.abac import evaluate_abac
+from .services.audit import compute_audit_signature, build_audit_payload
 
 # Identity retrieval
 class IdentityView(APIView):
@@ -47,13 +48,35 @@ class IdentityView(APIView):
 
         # Return 403 if nothing allowed
         if not result:
-            AuditLog.objects.create(
+            # Create audit log
+            last = AuditLog.objects.order_by("-timestamp").first()
+            
+            # Change prev_sig to last one or None if there isn't any
+            prev_sig = last.signature if last else None
+
+            log = AuditLog.objects.create(
                 requester=requester,
                 person=person,
                 context_used=context,
                 fields_returned=[],
                 decision="DENY",
                 denied_reason=decision.denied_reason,
+                prev_signature=prev_sig,
+            )
+
+            payload = build_audit_payload(
+                requester_id=log.requester_id,
+                person_id=log.person_id,
+                context_used=log.context_used,
+                fields_returned=log.fields_returned,
+                decision=log.decision,
+                denied_reason=log.denied_reason,
+                timestamp_iso=log.timestamp.isoformat(),
+            )
+            
+            # Do a one time update to set signature
+            AuditLog.objects.filter(pk=log.pk).update(
+                signature=compute_audit_signature(payload=payload, prev_signature=prev_sig)
             )
 
             return Response(
@@ -69,13 +92,34 @@ class IdentityView(APIView):
             )
         
         # Allowed case
-        AuditLog.objects.create(
+        last = AuditLog.objects.order_by("-timestamp").first()
+
+        # Change prev_sig to last one or None if there isn't any
+        prev_sig = last.signature if last else None
+
+        log = AuditLog.objects.create(
             requester=requester,
             person=person,
             context_used=context,
             fields_returned=fields_returned,
             decision="ALLOW",
             denied_reason=None,
+            prev_signature=prev_sig,
+        )
+
+        payload = build_audit_payload(
+            requester_id=log.requester_id,
+            person_id=log.person_id,
+            context_used=log.context_used,
+            fields_returned=log.fields_returned,
+            decision=log.decision,
+            denied_reason=log.denied_reason,
+            timestamp_iso=log.timestamp.isoformat(),
+        )
+
+        # Do a one time update to set signature
+        AuditLog.objects.filter(pk=log.pk).update(
+            signature=compute_audit_signature(payload=payload, prev_signature=prev_sig)
         )
 
         return Response(
