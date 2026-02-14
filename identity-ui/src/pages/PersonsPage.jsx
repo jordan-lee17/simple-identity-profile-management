@@ -77,8 +77,9 @@ export default function PersonsPage() {
               <thead>
                 <tr>
                   <th>ID</th>
-                  <th>Public ID</th>
-                  <th>Created</th>
+                  <th>Label</th>
+                  <th>Created At</th>
+                  <th>Updated At</th>
                   <th />
                 </tr>
               </thead>
@@ -86,8 +87,9 @@ export default function PersonsPage() {
                 {data.results.map((p) => (
                   <tr key={p.id}>
                     <td className="persons-mono">{p.id}</td>
-                    <td className="persons-mono">{p.public_id || "-"}</td>
+                    <td className="persons-mono">{p.label}</td>
                     <td className="persons-mono">{p.created_at ? new Date(p.created_at).toLocaleString() : "-"}</td>
+                    <td className="persons-mono">{p.updated_at ? new Date(p.updated_at).toLocaleString() : "-"}</td>
                     <td className="persons-actions">
                       <button
                         className="persons-btn"

@@ -1,5 +1,4 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { logout } from "../auth";
 import useSessionMonitor from "../hooks/useSessionMonitor";
 import SessionExpiryModal from "./SessionExpiryModal";
 import "./Shell.css";
@@ -34,6 +33,9 @@ export default function Shell() {
           </NavLink>
           <NavLink to="/policies" className="nav-link">
             Policies
+          </NavLink>
+          <NavLink to="/audit-logs" className="nav-link">
+            Audit Logs
           </NavLink>
         </nav>
       </aside>

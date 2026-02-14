@@ -11,6 +11,7 @@ from .serializers import ContextPolicySerializer, AuditLogSerializer, PersonSeri
 from .services.abac import evaluate_abac
 from .services.audit import compute_audit_signature, build_audit_payload
 
+# Person list retrieval
 class AdminPersonListView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated, IsAdminRequester]
@@ -22,7 +23,7 @@ class AdminPersonListView(APIView):
         page_size = int(request.GET.get("page_size") or 20)
         page_size = max(1, min(page_size, 100))
 
-        qs = Person.objects.all().order_by("id")
+        qs = Person.objects.prefetch_related("name_records").order_by("id")
 
         # Match NameRecord value
         if q:
@@ -222,21 +223,44 @@ class AdminAuditLogListView(APIView):
     permission_classes = [IsAuthenticated, IsAdminRequester]
 
     def get(self, request):
-        logs = AuditLog.objects.all().order_by("-timestamp")
-
-        # Filters
-        requester_id = request.GET.get("requester_id")
-        person_id = request.GET.get("person_id")
-        context_used = request.GET.get("context")
         decision = request.GET.get("decision")
+        context = request.GET.get("context")
+        q = request.GET.get("q")
 
-        if requester_id:
-            logs = logs.filter(requester_id=requester_id)
-        if person_id:
-            logs = logs.filter(person_id=person_id)
-        if context_used:
-            logs = logs.filter(context_used=context_used.strip().lower())
+        page = int(request.GET.get("page") or 1)
+        page_size = int(request.GET.get("page_size") or 20)
+        page_size = max(1, min(page_size, 100))
+
+        qs = AuditLog.objects.select_related(
+            "requester__user", "person"
+        ).order_by("-timestamp")
+
         if decision:
-            logs = logs.filter(decision=decision.strip().upper())
+            qs = qs.filter(decision=decision.upper())
 
-        return Response(AuditLogSerializer(logs, many=True).data, status=status.HTTP_200_OK)
+        if context:
+            qs = qs.filter(context_used__icontains=context)
+
+        if q:
+            qs = qs.filter(
+                Q(requester__user__username__icontains=q)
+                | Q(person__id__icontains=q)
+            )
+
+        total = qs.count()
+        start = (page - 1) * page_size
+        end = start + page_size
+
+        logs = qs[start:end]
+
+        serializer = AuditLogSerializer(logs, many=True)
+        print(serializer.data)
+        return Response(
+            {
+                "count": total,
+                "page": page,
+                "page_size": page_size,
+                "results": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )

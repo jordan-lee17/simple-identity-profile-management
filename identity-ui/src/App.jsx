@@ -6,6 +6,7 @@ import Shell from "./components/Shell";
 import PreviewPage from "./pages/PreviewPage";
 import PoliciesPage from "./pages/PoliciesPage";
 import PersonsPage from "./pages/PersonsPage";
+import AuditLogsPage from "./pages/AuditLogsPage";
 
 import "./App.css"
 
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="preview" element={<PreviewPage />} />
         <Route path="persons" element={<PersonsPage />} />
         <Route path="policies" element={<PoliciesPage />} />
+        <Route path="audit-logs" element={<AuditLogsPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
