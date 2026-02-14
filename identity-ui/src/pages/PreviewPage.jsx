@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import api from "../api/client";
 import "./PreviewPage.css";
 
@@ -8,6 +9,12 @@ export default function PreviewPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
+
+  const [params] = useSearchParams();
+  useEffect(() => {
+    const pid = params.get("personId");
+    if (pid) setPersonId(pid);
+  }, [params]);
 
   async function handleFetch() {
     setLoading(true);

@@ -17,3 +17,17 @@ export function logout() {
   localStorage.removeItem("refresh");
   localStorage.removeItem("username");
 }
+
+export async function refreshToken() {
+  const refresh = localStorage.getItem("refresh");
+  if (!refresh) throw new Error("No refresh token available");
+
+  try {
+    const res = await api.post("/api/token/refresh/", { refresh });
+    localStorage.setItem("access", res.data.access);
+    return res.data.access;
+  } catch (error) {
+    logout();
+    throw error;
+  }
+}

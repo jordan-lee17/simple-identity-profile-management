@@ -1,10 +1,13 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { logout } from "../auth";
+import useSessionMonitor from "../hooks/useSessionMonitor";
+import SessionExpiryModal from "./SessionExpiryModal";
 import "./Shell.css";
 
 export default function Shell() {
   const navigate = useNavigate();
   const username = localStorage.getItem("username") || "user";
+  const { showPrompt, extendSession, logout } = useSessionMonitor()
 
   const handleLogout = () => {
     logout();
@@ -15,10 +18,19 @@ export default function Shell() {
     <div className="shell-container">
       <aside className="shell-sidebar">
         <div className="sidebar-title">Identity Admin</div>
+        {showPrompt && (
+          <SessionExpiryModal
+            onExtend={extendSession}
+            onLogout={logout}
+          />
+        )}
 
         <nav className="shell-nav">
           <NavLink to="/preview" className="nav-link">
             Identity Preview
+          </NavLink>
+          <NavLink to="/persons" className="nav-link">
+            Persons
           </NavLink>
           <NavLink to="/policies" className="nav-link">
             Policies

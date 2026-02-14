@@ -5,6 +5,7 @@ import LoginPage from "./pages/LoginPage";
 import Shell from "./components/Shell";
 import PreviewPage from "./pages/PreviewPage";
 import PoliciesPage from "./pages/PoliciesPage";
+import PersonsPage from "./pages/PersonsPage";
 
 import "./App.css"
 
@@ -28,6 +29,7 @@ export default function App() {
       >
         <Route index element={<Navigate to="/preview" replace />} />
         <Route path="preview" element={<PreviewPage />} />
+        <Route path="persons" element={<PersonsPage />} />
         <Route path="policies" element={<PoliciesPage />} />
       </Route>
 
