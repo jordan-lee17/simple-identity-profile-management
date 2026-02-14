@@ -1,0 +1,45 @@
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { logout } from "../auth";
+import "./Shell.css";
+
+export default function Shell() {
+  const navigate = useNavigate();
+  const username = localStorage.getItem("username") || "user";
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
+  return (
+    <div className="shell-container">
+      <aside className="shell-sidebar">
+        <div className="sidebar-title">Identity Admin</div>
+
+        <nav className="shell-nav">
+          <NavLink to="/preview" className="nav-link">
+            Identity Preview
+          </NavLink>
+          <NavLink to="/policies" className="nav-link">
+            Policies
+          </NavLink>
+        </nav>
+      </aside>
+
+      <div className="shell-main-wrapper">
+        <header className="shell-header">
+          <div className="user-info">
+            Logged in as: <b>{username}</b>
+          </div>
+          <button onClick={handleLogout} className="logout-btn">
+            Logout
+          </button>
+        </header>
+
+        <main className="shell-main-content">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}

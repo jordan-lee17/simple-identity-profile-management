@@ -1,0 +1,80 @@
+.shell-container {
+  display: flex;
+  min-height: 100vh;
+  background: #0b1220;
+  color: #e8eefc;
+  font-family: sans-serif;
+}
+
+.shell-sidebar {
+  width: 240px;
+  padding: 16px;
+  background: #0f1a33;
+  border-right: 1px solid #1d2b50;
+}
+
+.sidebar-title {
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.shell-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nav-link {
+  padding: 10px 12px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: #cfe0ff;
+  transition: background 0.2s;
+}
+
+.nav-link:hover {
+  background: #152344;
+}
+
+.nav-link.active {
+  background: #1b2a52;
+}
+
+.shell-main-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.shell-header {
+  height: 56px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 16px;
+  border-bottom: 1px solid #1d2b50;
+  background: #0f1a33;
+}
+
+.user-info {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.logout-btn {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #1d2b50;
+  background: #1b2a52;
+  color: #e8eefc;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.logout-btn:hover {
+  opacity: 0.8;
+}
+
+.shell-main-content {
+  padding: 16px;
+}

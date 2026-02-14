@@ -1,0 +1,79 @@
+.previewPage {
+  width: 100%;
+}
+
+.previewContainer {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.previewCard {
+  background: #0f1a33;
+  border: 1px solid #1d2b50;
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.previewSmall {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.previewFormGrid {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.previewInput {
+  width: 98%;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #1d2b50;
+  background: #0b1220;
+  color: #e8eefc;
+  outline: none;
+}
+
+.previewBtn {
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #1d2b50;
+  background: #1b2a52;
+  color: #e8eefc;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.previewBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.previewAlert {
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #1d2b50;
+}
+
+.previewAlertError {
+  background: #3a1313;
+  color: #ffb4b4;
+}
+
+.previewAlertDenied {
+  background: #2b1a07;
+  color: #ffd7a1;
+}
+
+.previewPre {
+  background: #0b1220;
+  border: 1px solid #1d2b50;
+  padding: 12px;
+  border-radius: 12px;
+  overflow: auto;
+  max-height: 260px;
+  font-size: 12px;
+}
