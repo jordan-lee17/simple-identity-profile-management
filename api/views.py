@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from .models import *
 from .permissions import IsAdminRequester
-from .serializers import ContextPolicySerializer, AuditLogSerializer, PersonSerializer
+from .serializers import *
 from .services.abac import evaluate_abac
 from .services.audit import compute_audit_signature, build_audit_payload
 
@@ -254,7 +254,6 @@ class AdminAuditLogListView(APIView):
         logs = qs[start:end]
 
         serializer = AuditLogSerializer(logs, many=True)
-        print(serializer.data)
         return Response(
             {
                 "count": total,
@@ -262,5 +261,138 @@ class AdminAuditLogListView(APIView):
                 "page_size": page_size,
                 "results": serializer.data,
             },
+            status=status.HTTP_200_OK,
+        )
+    
+# Admin legal name view
+class AdminLegalNameView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated, IsAdminRequester]
+
+    def put(self, request):
+        ser = AdminLegalNameUpsertSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+
+        person = get_object_or_404(Person, pk=ser.validated_data["person_id"])
+
+        obj, created = NameRecord.objects.update_or_create(
+            person=person,
+            type="legal",
+            defaults={
+                "value": ser.validated_data["value"],
+                "sensitivity_level": ser.validated_data["sensitivity_level"],
+            },
+        )
+
+        return Response(
+            {"updated": True, "created": created, "record": NameRecordSerializer(obj).data},
+            status=status.HTTP_200_OK,
+        )
+    
+# Register new profile
+class RegisterPersonView(APIView):
+    # Public
+    authentication_classes = []  
+    permission_classes = []
+
+    def post(self, request):
+        ser = RegisterPersonSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+
+        username = ser.validated_data["username"]
+        password = ser.validated_data["password"]
+        email = ser.validated_data.get("email", "")
+
+        if User.objects.filter(username=username).exists():
+            return Response({"detail": "Username already exists."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = User.objects.create_user(username=username, password=password, email=email)
+
+        person = Person.objects.create()
+        PersonProfile.objects.create(user=user, person=person)
+
+        # legal name created once
+        NameRecord.objects.create(
+            person=person,
+            type="legal",
+            value=ser.validated_data["legal_name"],
+            sensitivity_level=ser.validated_data["legal_sensitivity_level"],
+        )
+
+        return Response(
+            {"created": True, "user_id": user.id, "person_id": person.id},
+            status=status.HTTP_201_CREATED,
+        )
+    
+# Admin create requester
+class AdminCreateRequesterView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated, IsAdminRequester]
+
+    def post(self, request):
+        ser = AdminCreateRequesterSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+
+        username = ser.validated_data["username"]
+        if User.objects.filter(username=username).exists():
+            return Response({"detail": "Username already exists."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = User.objects.create_user(
+            username=username,
+            password=ser.validated_data["password"],
+            email=ser.validated_data.get("email", ""),
+        )
+
+        req = Requester.objects.create(
+            user=user,
+            organisation_name=ser.validated_data["organisation_name"],
+            role=ser.validated_data["role"],
+        )
+
+        return Response(
+            {"created": True, "user_id": user.id, "requester_id": req.id},
+            status=status.HTTP_201_CREATED,
+        )
+    
+# Personal profile view
+SELF_SERVICE_TYPES = {"preferred", "professional"}
+class MyProfileView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get_person(self, request):
+        profile = get_object_or_404(PersonProfile, user=request.user)
+        return profile.person
+
+    def get(self, request):
+        person = self.get_person(request)
+        records = NameRecord.objects.filter(person=person).order_by("type")
+        return Response(
+            {"person_id": person.id, "name_records": NameRecordSerializer(records, many=True).data},
+            status=status.HTTP_200_OK,
+        )
+
+    def patch(self, request):
+        person = self.get_person(request)
+
+        ser = MyNameRecordUpsertSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+
+        rec_type = ser.validated_data["type"].lower()
+        if rec_type not in SELF_SERVICE_TYPES:
+            return Response({"detail": "Only preferred/professional can be edited here."},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        obj, created = NameRecord.objects.update_or_create(
+            person=person,
+            type=rec_type,
+            defaults={
+                "value": ser.validated_data["value"],
+                "sensitivity_level": ser.validated_data.get("sensitivity_level", "low"),
+            },
+        )
+
+        return Response(
+            {"updated": True, "created": created, "record": NameRecordSerializer(obj).data},
             status=status.HTTP_200_OK,
         )
