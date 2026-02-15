@@ -521,3 +521,188 @@ class IdentityAPITests(APITestCase):
         response = self.client.get(self.url + "?context=school")
         self.assertEqual(response.status_code, 403)
         self.assertIn("denied_reason", response.data)
+
+# Test profile creation and editing
+from django.contrib.auth.models import User
+
+class ProfileAPITests(APITestCase):
+    def setUp(self):
+        self.register_url = reverse("register-person")
+        self.me_profile_url = reverse("my-profile")
+        self.admin_legal_url = reverse("admin-legal-name")
+        self.admin_create_requester_url = reverse("admin-create-requester")
+
+        # Admin user + requester
+        self.admin_user = UserFactory(username="admin_hybrid")
+        self.admin_req = RequesterFactory(user=self.admin_user, role="admin", organisation_name="GovTech")
+
+    def test_register_creates_person_profile_and_legal_name(self):
+        payload = {
+            "username": "person1",
+            "password": "pass123456",
+            "email": "person1@example.com",
+            "legal_name": "Jordan Lee Jun Loong",
+            "legal_sensitivity_level": "high",
+        }
+
+        res = self.client.post(self.register_url, payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertIn("person_id", res.data)
+        person_id = res.data["person_id"]
+
+        # Person profile created
+        user = User.objects.get(username="person1")
+        self.assertTrue(hasattr(user, "person_profile"))
+        self.assertEqual(user.person_profile.person_id, person_id)
+
+        # Legal NameRecord created
+        legal = NameRecord.objects.filter(person_id=person_id, type="legal").first()
+        self.assertIsNotNone(legal)
+        self.assertEqual(legal.value, "Jordan Lee Jun Loong")
+        self.assertEqual(legal.sensitivity_level, "high")
+
+    def test_self_service_can_edit_preferred_and_professional(self):
+        # Register a normal user
+        res = self.client.post(self.register_url, {
+            "username": "person2",
+            "password": "pass123456",
+            "email": "person2@example.com",
+            "legal_name": "Alicia Tan Wei Ling",
+            "legal_sensitivity_level": "high",
+        }, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        user = User.objects.get(username="person2")
+        self.client.force_authenticate(user=user)
+
+        # Add preferred
+        res2 = self.client.patch(self.me_profile_url, {
+            "type": "preferred",
+            "value": "Alicia",
+            "sensitivity_level": "low",
+        }, format="json")
+        self.assertEqual(res2.status_code, status.HTTP_200_OK)
+
+        # Add professional
+        res3 = self.client.patch(self.me_profile_url, {
+            "type": "professional",
+            "value": "Ms Tan",
+            "sensitivity_level": "medium",
+        }, format="json")
+        self.assertEqual(res3.status_code, status.HTTP_200_OK)
+
+        # Verify stored
+        person_id = user.person_profile.person_id
+        self.assertTrue(NameRecord.objects.filter(person_id=person_id, type="preferred", value="Alicia").exists())
+        self.assertTrue(NameRecord.objects.filter(person_id=person_id, type="professional", value="Ms Tan").exists())
+
+    def test_self_service_cannot_edit_legal_name(self):
+        # Register a normal user (creates legal)
+        res = self.client.post(self.register_url, {
+            "username": "person3",
+            "password": "pass123456",
+            "email": "person3@example.com",
+            "legal_name": "Muhammad Haziq bin Ahmad",
+            "legal_sensitivity_level": "high",
+        }, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        user = User.objects.get(username="person3")
+        self.client.force_authenticate(user=user)
+
+        # Attempt to edit legal via /api/me/profile/
+        res2 = self.client.patch(self.me_profile_url, {
+            "type": "legal",
+            "value": "Hacked Legal Name",
+            "sensitivity_level": "high",
+        }, format="json")
+
+        self.assertEqual(res2.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Ensure unchanged
+        person_id = user.person_profile.person_id
+        legal = NameRecord.objects.get(person_id=person_id, type="legal")
+        self.assertEqual(legal.value, "Muhammad Haziq bin Ahmad")
+
+    def test_admin_can_update_legal_name(self):
+        # Create a normal user to own a person/profile
+        res = self.client.post(self.register_url, {
+            "username": "person4",
+            "password": "pass123456",
+            "email": "person4@example.com",
+            "legal_name": "Old Legal",
+            "legal_sensitivity_level": "high",
+        }, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        person_id = res.data["person_id"]
+
+        # Admin updates legal
+        self.client.force_authenticate(user=self.admin_user)
+        res2 = self.client.put(self.admin_legal_url, {
+            "person_id": person_id,
+            "value": "New Legal Name",
+            "sensitivity_level": "high",
+        }, format="json")
+        self.assertEqual(res2.status_code, status.HTTP_200_OK)
+
+        legal = NameRecord.objects.get(person_id=person_id, type="legal")
+        self.assertEqual(legal.value, "New Legal Name")
+
+    def test_non_admin_cannot_update_legal_name(self):
+        # Create a normal user
+        res = self.client.post(self.register_url, {
+            "username": "person5",
+            "password": "pass123456",
+            "email": "person5@example.com",
+            "legal_name": "Legal X",
+            "legal_sensitivity_level": "high",
+        }, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        person_id = res.data["person_id"]
+
+        # Non-admin requester
+        non_admin_user = UserFactory(username="not_admin")
+        RequesterFactory(user=non_admin_user, role="teacher", organisation_name="School A")
+
+        self.client.force_authenticate(user=non_admin_user)
+        res2 = self.client.put(self.admin_legal_url, {
+            "person_id": person_id,
+            "value": "Should Fail",
+            "sensitivity_level": "high",
+        }, format="json")
+        self.assertEqual(res2.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_can_create_requester_account(self):
+        self.client.force_authenticate(user=self.admin_user)
+
+        payload = {
+            "username": "req_teacher_1",
+            "password": "pass123456",
+            "email": "req_teacher_1@example.com",
+            "organisation_name": "School A",
+            "role": "teacher",
+        }
+
+        res = self.client.post(self.admin_create_requester_url, payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+
+        # Verify User + Requester created
+        u = User.objects.get(username="req_teacher_1")
+        self.assertTrue(hasattr(u, "requester"))
+        self.assertEqual(u.requester.role, "teacher")
+        self.assertEqual(u.requester.organisation_name, "School A")
+
+    def test_non_admin_cannot_create_requester_account(self):
+        non_admin_user = UserFactory(username="teacher_non_admin")
+        RequesterFactory(user=non_admin_user, role="teacher", organisation_name="School A")
+
+        self.client.force_authenticate(user=non_admin_user)
+
+        payload = {
+            "username": "req_fail",
+            "password": "pass123456",
+            "email": "req_fail@example.com",
+            "organisation_name": "Company B",
+            "role": "employer",
+        }
+
+        res = self.client.post(self.admin_create_requester_url, payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
