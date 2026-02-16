@@ -5,11 +5,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
+from django.utils import timezone
 from .models import *
 from .permissions import IsAdminRequester
 from .serializers import *
 from .services.abac import evaluate_abac
 from .services.audit import compute_audit_signature, build_audit_payload
+from django.core.exceptions import PermissionDenied
 
 # Person list retrieval
 class AdminPersonListView(APIView):
@@ -290,38 +292,18 @@ class AdminLegalNameView(APIView):
         )
     
 # Register new profile
-class RegisterPersonView(APIView):
-    # Public
-    authentication_classes = []  
+class RegisterView(APIView):
+    authentication_classes = []
     permission_classes = []
 
     def post(self, request):
-        ser = RegisterPersonSerializer(data=request.data)
-        ser.is_valid(raise_exception=True)
-
-        username = ser.validated_data["username"]
-        password = ser.validated_data["password"]
-        email = ser.validated_data.get("email", "")
-
-        if User.objects.filter(username=username).exists():
-            return Response({"detail": "Username already exists."}, status=status.HTTP_400_BAD_REQUEST)
-
-        user = User.objects.create_user(username=username, password=password, email=email)
-
-        person = Person.objects.create()
-        PersonProfile.objects.create(user=user, person=person)
-
-        # legal name created once
-        NameRecord.objects.create(
-            person=person,
-            type="legal",
-            value=ser.validated_data["legal_name"],
-            sensitivity_level=ser.validated_data["legal_sensitivity_level"],
-        )
+        serializer = RegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
 
         return Response(
-            {"created": True, "user_id": user.id, "person_id": person.id},
-            status=status.HTTP_201_CREATED,
+            {"message": "Registration successful."},
+            status=status.HTTP_201_CREATED
         )
     
 # Admin create requester
@@ -361,8 +343,9 @@ class MyProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get_person(self, request):
-        profile = get_object_or_404(PersonProfile, user=request.user)
-        return profile.person
+        if not hasattr(request.user, "person_profile"):
+            raise PermissionDenied("This account does not have a personal profile.")
+        return request.user.person_profile.person
 
     def get(self, request):
         person = self.get_person(request)
@@ -388,11 +371,97 @@ class MyProfileView(APIView):
             type=rec_type,
             defaults={
                 "value": ser.validated_data["value"],
-                "sensitivity_level": ser.validated_data.get("sensitivity_level", "low"),
+                "sensitivity_level": "low"
             },
         )
+        person.updated_at = timezone.now()
+        person.save(update_fields=["updated_at"])
 
         return Response(
             {"updated": True, "created": created, "record": NameRecordSerializer(obj).data},
             status=status.HTTP_200_OK,
+        )
+    
+# Admin & requester profile view
+class MeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        requester = getattr(user, "requester", None)
+        person_profile = getattr(user, "person_profile", None)
+
+        if person_profile:
+            account_type = "person"
+        elif requester:
+            if requester.role == "admin":
+                account_type = "admin"
+            else:
+                account_type = "requester"
+
+        data = {
+            "username": user.username,
+            "email": getattr(user, "email", ""),
+            "account_type": account_type,
+            "requester": None,
+            "person_profile": None,
+        }
+
+        if requester:
+            data["requester"] = {
+                "role": requester.role,
+                "organisation_name": requester.organisation_name,
+            }
+
+        if person_profile:
+            person = person_profile.person
+            data["person_profile"] = {
+                "person_id": person.id,
+                "updated_at": person.updated_at.isoformat() if person.updated_at else None,
+                "created_at": person.created_at.isoformat() if person.created_at else None,
+            }
+
+        return Response(data, status=status.HTTP_200_OK)
+    
+# Admin profile view
+class AdminPersonNameRecordsView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated, IsAdminRequester]
+
+    def get(self, request, person_id: int):
+        person = get_object_or_404(Person, pk=person_id)
+        records = NameRecord.objects.filter(person=person).order_by("type")
+        return Response(
+            {"person_id": person.id, "name_records": NameRecordSerializer(records, many=True).data},
+            status=status.HTTP_200_OK
+        )
+
+    def put(self, request, person_id: int):
+        person = get_object_or_404(Person, pk=person_id)
+
+        ser = AdminNameRecordUpsertSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+
+        rec_type = ser.validated_data["type"].lower()
+
+        obj, created = NameRecord.objects.update_or_create(
+            person=person,
+            type=rec_type,
+            defaults={
+                "value": ser.validated_data["value"],
+                "sensitivity_level": ser.validated_data["sensitivity_level"],
+            },
+        )
+
+        person.updated_at = timezone.now()
+        person.save(update_fields=["updated_at"])
+
+        return Response(
+            {
+                "updated": True,
+                "created": created,
+                "record": NameRecordSerializer(obj).data,
+            },
+            status=status.HTTP_200_OK
         )

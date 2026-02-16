@@ -1,0 +1,31 @@
+.toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  background: rgba(15, 26, 51, 0.98);
+  border: 1px solid #1d2b50;
+  color: #e8eefc;
+  padding: 12px 14px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+  min-width: 260px;
+  z-index: 9999;
+}
+
+.toastTitle {
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.toastBody {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.toastOk {
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.toastWarn {
+  border-color: rgba(245, 158, 11, 0.35);
+}

@@ -1,0 +1,98 @@
+.my-names {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #0b1220;
+  color: #e8eefc;
+}
+
+.my-names-card {
+  width: min(640px, 100%);
+  background: #0f1a33;
+  border: 1px solid #1d2b50;
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.my-names-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.meta {
+  margin-top: 8px;
+  font-size: 12px;
+  opacity: 0.9;
+  display: grid;
+  gap: 4px;
+}
+
+.muted {
+  opacity: 0.75;
+}
+
+.field {
+  margin-top: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.field label {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.field input {
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #1d2b50;
+  background: #0b1220;
+  color: #e8eefc;
+  outline: none;
+}
+
+.btn {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #1d2b50;
+  background: #1b2a52;
+  color: #e8eefc;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn.primary {
+  background: #2563eb;
+  border-color: #1d2b50;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ok {
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #1d2b50;
+  background: #0b2a16;
+  color: #b8ffcf;
+}
+
+.err {
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #1d2b50;
+  background: #3a1313;
+  color: #ffb4b4;
+}
+
+.note {
+  margin-top: 12px;
+  font-size: 12px;
+  opacity: 0.8;
+}

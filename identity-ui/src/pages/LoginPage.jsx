@@ -49,6 +49,13 @@ export default function LoginPage() {
           <button className="login-btn" type="submit">
             Login
           </button>
+          <button
+            type="button"
+            className="login-btn login-btn-secondary"
+            onClick={() => nav("/register")}
+          >
+            Register
+          </button>
           {err && <div className="login-error">{err}</div>}
         </form>
       </div>

@@ -31,11 +31,17 @@ export default function Shell() {
           <NavLink to="/persons" className="nav-link">
             Persons
           </NavLink>
+          <NavLink to="/create-requester" className="nav-link">
+            New Requester
+          </NavLink>
           <NavLink to="/policies" className="nav-link">
             Policies
           </NavLink>
           <NavLink to="/audit-logs" className="nav-link">
             Audit Logs
+          </NavLink>
+          <NavLink to="/profile" className="nav-link">
+            Profile
           </NavLink>
         </nav>
       </aside>

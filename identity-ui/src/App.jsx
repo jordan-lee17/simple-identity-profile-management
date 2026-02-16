@@ -7,6 +7,10 @@ import PreviewPage from "./pages/PreviewPage";
 import PoliciesPage from "./pages/PoliciesPage";
 import PersonsPage from "./pages/PersonsPage";
 import AuditLogsPage from "./pages/AuditLogsPage";
+import RegisterPage from "./pages/RegisterPage";
+import ProfilePage from "./pages/ProfilePage";
+import AdminPersonEditPage from "./pages/AdminEditPersonPage";
+import CreateRequesterPage from "./pages/CreateRequesterPage";
 
 import "./App.css"
 
@@ -19,6 +23,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
 
       <Route
         path="/"
@@ -31,8 +36,11 @@ export default function App() {
         <Route index element={<Navigate to="/preview" replace />} />
         <Route path="preview" element={<PreviewPage />} />
         <Route path="persons" element={<PersonsPage />} />
+        <Route path="create-requester" element={<CreateRequesterPage />} />
         <Route path="policies" element={<PoliciesPage />} />
         <Route path="audit-logs" element={<AuditLogsPage />} />
+        <Route path="profile" element={<ProfilePage />} />
+        <Route path="persons/:personId" element={<AdminPersonEditPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

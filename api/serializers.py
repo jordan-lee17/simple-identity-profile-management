@@ -15,18 +15,65 @@ class PersonSerializer(serializers.ModelSerializer):
 class MyNameRecordUpsertSerializer(serializers.Serializer):
     type = serializers.CharField()
     value = serializers.CharField(max_length=255)
-    sensitivity_level = serializers.ChoiceField(choices=["low", "medium", "high"], default="low")
 
-class RegisterPersonSerializer(serializers.Serializer):
+class AdminNameRecordUpsertSerializer(serializers.Serializer):
+    type = serializers.ChoiceField(choices=["legal", "preferred", "professional"])
+    value = serializers.CharField(max_length=255)
+    sensitivity_level = serializers.ChoiceField(choices=["low", "medium", "high"])
+
+class RegisterSerializer(serializers.Serializer):
     username = serializers.CharField()
+    email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
-    email = serializers.EmailField(required=False, allow_blank=True)
 
     legal_name = serializers.CharField()
-    legal_sensitivity_level = serializers.ChoiceField(
-        choices=["low", "medium", "high"],
-        default="high"
-    )
+    preferred_name = serializers.CharField()
+    professional_name = serializers.CharField()
+
+    def validate_username(self, value):
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("Username already exists.")
+        return value
+
+    def create(self, validated_data):
+        username = validated_data["username"]
+        email = validated_data["email"]
+        password = validated_data["password"]
+
+        legal_name = validated_data["legal_name"]
+        preferred_name = validated_data.get("preferred_name")
+        professional_name = validated_data.get("professional_name")
+
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+        )
+        person = Person.objects.create()
+        PersonProfile.objects.create(user=user, person=person)
+
+        NameRecord.objects.create(
+            person=person,
+            type="legal",
+            value=legal_name,
+            sensitivity_level="high",
+        )
+
+        NameRecord.objects.create(
+            person=person,
+            type="preferred",
+            value=preferred_name,
+            sensitivity_level="low",
+        )
+
+        NameRecord.objects.create(
+            person=person,
+            type="professional",
+            value=professional_name,
+            sensitivity_level="low",
+        )
+
+        return user
 
 class AdminLegalNameUpsertSerializer(serializers.Serializer):
     person_id = serializers.IntegerField()
@@ -40,6 +87,12 @@ class AdminCreateRequesterSerializer(serializers.Serializer):
 
     organisation_name = serializers.CharField()
     role = serializers.CharField()
+
+    def validate_role(self, v):
+        v = v.strip()
+        if not v:
+            raise serializers.ValidationError("Role is required.")
+        return v
 
 class NameRecordSerializer(serializers.ModelSerializer):
     class Meta:
@@ -65,3 +118,11 @@ class AuditLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = AuditLog
         fields = "__all__"
+
+class MeSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    email = serializers.EmailField(allow_blank=True, required=False)
+    account_type = serializers.ChoiceField(choices=["person", "requester", "admin"])
+
+    requester = serializers.DictField(required=False, allow_null=True)
+    person_profile = serializers.DictField(required=False, allow_null=True)

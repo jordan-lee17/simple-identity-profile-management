@@ -97,6 +97,12 @@ export default function PersonsPage() {
                       >
                         Preview
                       </button>
+                      <button
+                        className="persons-btn persons-btnSecondary"
+                        onClick={() => nav(`/persons/${p.id}`)}
+                      >
+                        Edit
+                      </button>
                     </td>
                   </tr>
                 ))}

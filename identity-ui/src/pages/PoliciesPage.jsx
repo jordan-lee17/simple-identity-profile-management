@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../api/client";
 import "./PoliciesPage.css";
+import Toast from "../components/Toast";
 
 const NAME_TYPES = ["legal", "preferred", "professional"];
 
@@ -332,12 +333,7 @@ export default function PoliciesPage() {
           </div>
         </div>
       </div>
-      {toast && (
-        <div className={`toast ${toast.variant === "ok" ? "toastOk" : "toastWarn"}`}>
-          <div className="toastTitle">{toast.title}</div>
-          <div className="toastBody">{toast.body}</div>
-        </div>
-      )}
+      <Toast toast={toast} />
     </div>
   );
 }

@@ -98,7 +98,10 @@
 }
 
 .persons-actions {
+  display: flex;
+  flex-direction: row;
   text-align: right;
+  gap: 10px;
 }
 
 .persons-mono {
