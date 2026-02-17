@@ -18,8 +18,10 @@ urlpatterns = [
     path("api/me/profile/", MyProfileView.as_view(), name="my-profile"),
     # Identity view
     path("identity/<int:person_id>/", IdentityView.as_view(), name="identity"),
+    # Admin requester list endpoint
+    path("api/admin/requesters/", AdminRequesterListView.as_view(), name="admin-requester-list"),
     # Admin register requester
-    path("api/admin/requesters/", AdminCreateRequesterView.as_view(), name="admin-create-requester"),
+    path("api/admin/new-requesters/", AdminCreateRequesterView.as_view(), name="admin-create-requester"),
     # Admin policy endpoints
     path("api/admin/policies/", AdminContextPolicyListCreateView.as_view(), name="admin-policy-list"),
     path("api/admin/policies/<int:pk>/", AdminContextPolicyDetailView.as_view(), name="admin-policy-detail"),

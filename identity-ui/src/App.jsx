@@ -6,11 +6,11 @@ import Shell from "./components/Shell";
 import PreviewPage from "./pages/PreviewPage";
 import PoliciesPage from "./pages/PoliciesPage";
 import PersonsPage from "./pages/PersonsPage";
+import RequesterPage from "./pages/RequesterPage";
 import AuditLogsPage from "./pages/AuditLogsPage";
 import RegisterPage from "./pages/RegisterPage";
 import ProfilePage from "./pages/ProfilePage";
 import AdminPersonEditPage from "./pages/AdminEditPersonPage";
-import CreateRequesterPage from "./pages/CreateRequesterPage";
 
 import "./App.css"
 
@@ -36,7 +36,7 @@ export default function App() {
         <Route index element={<Navigate to="/preview" replace />} />
         <Route path="preview" element={<PreviewPage />} />
         <Route path="persons" element={<PersonsPage />} />
-        <Route path="create-requester" element={<CreateRequesterPage />} />
+        <Route path="requesters" element={<RequesterPage />} />
         <Route path="policies" element={<PoliciesPage />} />
         <Route path="audit-logs" element={<AuditLogsPage />} />
         <Route path="profile" element={<ProfilePage />} />

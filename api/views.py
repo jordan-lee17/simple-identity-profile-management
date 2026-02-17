@@ -49,6 +49,44 @@ class AdminPersonListView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+    
+# Requester list retrieval
+class AdminRequesterListView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated, IsAdminRequester]
+
+    def get(self, request):
+        # Query params
+        q = (request.GET.get("q") or "").strip()
+        page = int(request.GET.get("page") or 1)
+        page_size = int(request.GET.get("page_size") or 20)
+        page_size = max(1, min(page_size, 100))
+
+        qs = Requester.objects.prefetch_related("user").order_by("id")
+
+        if q:
+            qs = qs.filter(
+                Q(user__username__icontains=q) |
+                Q(organisation_name__icontains=q) |
+                Q(role__icontains=q)
+            )
+
+        total = qs.count()
+        start = (page - 1) * page_size
+        end = start + page_size
+        items = qs[start:end]
+
+        data = RequesterSerializer(items, many=True).data
+
+        return Response(
+            {
+                "count": total,
+                "page": page,
+                "page_size": page_size,
+                "results": data,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 # Identity retrieval
 class IdentityView(APIView):

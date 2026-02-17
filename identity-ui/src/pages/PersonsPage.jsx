@@ -54,7 +54,7 @@ export default function PersonsPage() {
         <form className="persons-search" onSubmit={onSearchSubmit}>
           <input
             className="persons-searchInput"
-            placeholder="Search name / public_id…"
+            placeholder="Search name"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
