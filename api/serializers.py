@@ -93,7 +93,34 @@ class AdminCreateRequesterSerializer(serializers.Serializer):
         if not v:
             raise serializers.ValidationError("Role is required.")
         return v
+    
+    def validate_username(self, value):
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("Username already exists.")
+        return value
+    
+    def create(self, validated_data):
+        username = validated_data["username"]
+        email = validated_data["email"]
+        password = validated_data["password"]
 
+        organisation_name = validated_data["organisation_name"]
+        role = validated_data["role"]
+
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+        )
+
+        req = Requester.objects.create(
+            user=user,
+            organisation_name=organisation_name,
+            role=role
+        )
+
+        return req
+    
 class NameRecordSerializer(serializers.ModelSerializer):
     class Meta:
         model = NameRecord

@@ -312,29 +312,16 @@ class AdminCreateRequesterView(APIView):
     permission_classes = [IsAuthenticated, IsAdminRequester]
 
     def post(self, request):
-        ser = AdminCreateRequesterSerializer(data=request.data)
-        ser.is_valid(raise_exception=True)
-
-        username = ser.validated_data["username"]
-        if User.objects.filter(username=username).exists():
-            return Response({"detail": "Username already exists."}, status=status.HTTP_400_BAD_REQUEST)
-
-        user = User.objects.create_user(
-            username=username,
-            password=ser.validated_data["password"],
-            email=ser.validated_data.get("email", ""),
-        )
-
-        req = Requester.objects.create(
-            user=user,
-            organisation_name=ser.validated_data["organisation_name"],
-            role=ser.validated_data["role"],
-        )
+        serializer = AdminCreateRequesterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        requester = serializer.save()
 
         return Response(
-            {"created": True, "user_id": user.id, "requester_id": req.id},
+            {
+                "created": True, "requester_id": requester.id,
+            },
             status=status.HTTP_201_CREATED,
-        )
+    )
     
 # Personal profile view
 SELF_SERVICE_TYPES = {"preferred", "professional"}
