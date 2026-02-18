@@ -10,7 +10,7 @@ export default function LoginPage() {
   const [err, setErr] = useState("");
 
   React.useEffect(() => {
-    if (isLoggedIn()) nav("/preview");
+    if (isLoggedIn()) nav("/");
   }, [nav]);
 
   async function onSubmit(e) {
@@ -18,7 +18,7 @@ export default function LoginPage() {
     setErr("");
     try {
       await login(username, password);
-      nav("/preview");
+      nav("/")
     } catch {
       setErr("Login failed. Check username/password.");
     }

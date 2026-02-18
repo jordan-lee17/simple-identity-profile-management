@@ -11,6 +11,8 @@ import AuditLogsPage from "./pages/AuditLogsPage";
 import RegisterPage from "./pages/RegisterPage";
 import ProfilePage from "./pages/ProfilePage";
 import AdminPersonEditPage from "./pages/AdminEditPersonPage";
+import HomeRedirect from "./pages/HomeRedirect";
+import RequireAccountType from "./components/RequireAccountType"
 
 import "./App.css"
 
@@ -33,14 +35,67 @@ export default function App() {
           </RequireAuth>
         }
       >
-        <Route index element={<Navigate to="/preview" replace />} />
-        <Route path="preview" element={<PreviewPage />} />
-        <Route path="persons" element={<PersonsPage />} />
-        <Route path="requesters" element={<RequesterPage />} />
-        <Route path="policies" element={<PoliciesPage />} />
-        <Route path="audit-logs" element={<AuditLogsPage />} />
-        <Route path="profile" element={<ProfilePage />} />
-        <Route path="persons/:personId" element={<AdminPersonEditPage />} />
+        {/* Default Page */}
+        <Route index element={<HomeRedirect />} />
+
+        <Route
+          path="preview"
+          element={
+            <RequireAccountType allowedTypes={["requester", "admin"]}>
+              <PreviewPage />
+            </RequireAccountType>
+          }
+        />
+
+        <Route
+          path="policies"
+          element={
+            <RequireAccountType allowedTypes={["admin"]}>
+              <PoliciesPage />
+            </RequireAccountType>
+          }
+        />
+        <Route
+          path="persons"
+          element={
+            <RequireAccountType allowedTypes={["admin"]}>
+              <PersonsPage />
+            </RequireAccountType>
+          }
+        />
+        <Route
+          path="persons/:personId"
+          element={
+            <RequireAccountType allowedTypes={["admin"]}>
+              <AdminPersonEditPage />
+            </RequireAccountType>
+          }
+        />
+        <Route
+          path="requesters"
+          element={
+            <RequireAccountType allowedTypes={["admin"]}>
+              <RequesterPage />
+            </RequireAccountType>
+          }
+        />
+        <Route
+          path="audit-logs"
+          element={
+            <RequireAccountType allowedTypes={["admin"]}>
+              <AuditLogsPage />
+            </RequireAccountType>
+          }
+        />
+
+        <Route
+          path="profile"
+          element={
+            <RequireAccountType allowedTypes={["person", "requester"]}>
+              <ProfilePage />
+            </RequireAccountType>
+          }
+        />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
