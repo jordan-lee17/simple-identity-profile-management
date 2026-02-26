@@ -31,7 +31,4 @@ urlpatterns = [
     path("api/admin/persons/", AdminPersonListView.as_view(), name="admin-person-list"),
     # Admin Profile View
     path("api/admin/persons/<int:person_id>/names/", AdminPersonNameRecordsView.as_view(), name="admin-person-names"),
-    # Admin operations
-    path("api/admin/legal-name/", AdminLegalNameView.as_view(), name="admin-legal-name"),
-    path("api/admin/requesters/", AdminCreateRequesterView.as_view(), name="admin-create-requester")
 ]

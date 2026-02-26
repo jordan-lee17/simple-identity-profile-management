@@ -304,31 +304,6 @@ class AdminAuditLogListView(APIView):
             status=status.HTTP_200_OK,
         )
     
-# Admin legal name view
-class AdminLegalNameView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated, IsAdminRequester]
-
-    def put(self, request):
-        ser = AdminLegalNameUpsertSerializer(data=request.data)
-        ser.is_valid(raise_exception=True)
-
-        person = get_object_or_404(Person, pk=ser.validated_data["person_id"])
-
-        obj, created = NameRecord.objects.update_or_create(
-            person=person,
-            type="legal",
-            defaults={
-                "value": ser.validated_data["value"],
-                "sensitivity_level": ser.validated_data["sensitivity_level"],
-            },
-        )
-
-        return Response(
-            {"updated": True, "created": created, "record": NameRecordSerializer(obj).data},
-            status=status.HTTP_200_OK,
-        )
-    
 # Register new profile
 class RegisterView(APIView):
     authentication_classes = []
@@ -337,10 +312,12 @@ class RegisterView(APIView):
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        new_profile = serializer.save()
 
         return Response(
-            {"message": "Registration successful."},
+            {"message": "Registration successful.",
+             "person_id": new_profile.id},
+            
             status=status.HTTP_201_CREATED
         )
     

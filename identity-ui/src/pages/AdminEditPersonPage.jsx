@@ -69,7 +69,6 @@ export default function AdminPersonEditPage() {
     async function saveType(type) {
         setErr("");
         setSavingType(type);
-
         try {
             const payload = {
                 type,

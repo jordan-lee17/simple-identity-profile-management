@@ -523,13 +523,10 @@ class IdentityAPITests(APITestCase):
         self.assertIn("denied_reason", response.data)
 
 # Test profile creation and editing
-from django.contrib.auth.models import User
-
 class ProfileAPITests(APITestCase):
     def setUp(self):
         self.register_url = reverse("register-person")
         self.me_profile_url = reverse("my-profile")
-        self.admin_legal_url = reverse("admin-legal-name")
         self.admin_create_requester_url = reverse("admin-create-requester")
 
         # Admin user + requester
@@ -542,7 +539,9 @@ class ProfileAPITests(APITestCase):
             "password": "pass123456",
             "email": "person1@example.com",
             "legal_name": "Jordan Lee Jun Loong",
-            "legal_sensitivity_level": "high",
+            "sensitivity_level": "high",
+            "preferred_name": "Jordan",
+            "professional_name": "Mr Jordan Lee",
         }
 
         res = self.client.post(self.register_url, payload, format="json")
@@ -568,7 +567,9 @@ class ProfileAPITests(APITestCase):
             "password": "pass123456",
             "email": "person2@example.com",
             "legal_name": "Alicia Tan Wei Ling",
-            "legal_sensitivity_level": "high",
+            "sensitivity_level": "high",
+            "preferred_name": "Ali",
+            "professional_name": "Ms Alicia Tan",
         }, format="json")
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         user = User.objects.get(username="person2")
@@ -602,7 +603,9 @@ class ProfileAPITests(APITestCase):
             "password": "pass123456",
             "email": "person3@example.com",
             "legal_name": "Muhammad Haziq bin Ahmad",
-            "legal_sensitivity_level": "high",
+            "sensitivity_level": "high",
+            "preferred_name": "Haziq",
+            "professional_name": "Muhammad Haziq",
         }, format="json")
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         user = User.objects.get(username="person3")
@@ -629,15 +632,19 @@ class ProfileAPITests(APITestCase):
             "password": "pass123456",
             "email": "person4@example.com",
             "legal_name": "Old Legal",
-            "legal_sensitivity_level": "high",
+            "sensitivity_level": "high",
+            "preferred_name": "Old",
+            "professional_name": "Old Legal",
         }, format="json")
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         person_id = res.data["person_id"]
 
         # Admin updates legal
         self.client.force_authenticate(user=self.admin_user)
-        res2 = self.client.put(self.admin_legal_url, {
+        admin_edit_legal_url = reverse("admin-person-names", kwargs={"person_id": person_id})
+        res2 = self.client.put(admin_edit_legal_url, {
             "person_id": person_id,
+            "type": "legal",
             "value": "New Legal Name",
             "sensitivity_level": "high",
         }, format="json")
@@ -653,7 +660,9 @@ class ProfileAPITests(APITestCase):
             "password": "pass123456",
             "email": "person5@example.com",
             "legal_name": "Legal X",
-            "legal_sensitivity_level": "high",
+            "sensitivity_level": "high",
+            "preferred_name": "Legal",
+            "professional_name": "Legal X",
         }, format="json")
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         person_id = res.data["person_id"]
@@ -663,8 +672,10 @@ class ProfileAPITests(APITestCase):
         RequesterFactory(user=non_admin_user, role="teacher", organisation_name="School A")
 
         self.client.force_authenticate(user=non_admin_user)
-        res2 = self.client.put(self.admin_legal_url, {
+        admin_edit_legal_url = reverse("admin-person-names", kwargs={"person_id": person_id})
+        res2 = self.client.put(admin_edit_legal_url, {
             "person_id": person_id,
+            "type": "legal",
             "value": "Should Fail",
             "sensitivity_level": "high",
         }, format="json")
@@ -706,3 +717,129 @@ class ProfileAPITests(APITestCase):
 
         res = self.client.post(self.admin_create_requester_url, payload, format="json")
         self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+class MeViewTests(APITestCase):
+    def setUp(self):
+        self.me_url = reverse("me")
+
+    def test_me_requires_auth(self):
+        res = self.client.get(self.me_url)
+        self.assertIn(res.status_code, [401, 403])
+
+    def test_me_returns_person_account_type(self):
+        user = UserFactory(username="person_me")
+        person = PersonFactory()
+        PersonProfileFactory(user=user, person=person)
+
+        self.client.force_authenticate(user=user)
+        res = self.client.get(self.me_url)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["account_type"], "person")
+        self.assertIsNotNone(res.data["person_profile"])
+        self.assertEqual(res.data["person_profile"]["person_id"], person.id)
+        self.assertIsNone(res.data["requester"])
+
+    def test_me_returns_requester_account_type(self):
+        user = UserFactory(username="req_me")
+        RequesterFactory(user=user, role="teacher", organisation_name="School A")
+
+        self.client.force_authenticate(user=user)
+        res = self.client.get(self.me_url)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["account_type"], "requester")
+        self.assertIsNotNone(res.data["requester"])
+        self.assertEqual(res.data["requester"]["role"], "teacher")
+        self.assertEqual(res.data["requester"]["organisation_name"], "School A")
+        self.assertIsNone(res.data["person_profile"])
+
+    def test_me_returns_admin_account_type(self):
+        user = UserFactory(username="admin_me")
+        RequesterFactory(user=user, role="admin", organisation_name="GovTech")
+
+        self.client.force_authenticate(user=user)
+        res = self.client.get(self.me_url)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["account_type"], "admin")
+        self.assertIsNotNone(res.data["requester"])
+        self.assertEqual(res.data["requester"]["role"], "admin")
+
+class MyProfileEdgeCaseTests(APITestCase):
+    def setUp(self):
+        self.url = reverse("my-profile")
+
+    def test_requester_cannot_access_my_profile(self):
+        user = UserFactory(username="req_no_profile")
+        RequesterFactory(user=user, role="teacher", organisation_name="School A")
+
+        self.client.force_authenticate(user=user)
+        res = self.client.get(self.url)
+
+        self.assertIn(res.status_code, [403, 404])
+
+class AdminRequesterListTests(APITestCase):
+    def setUp(self):
+        self.url = reverse("admin-requester-list")
+
+        self.admin_user = UserFactory(username="admin_req_list")
+        RequesterFactory(user=self.admin_user, role="admin", organisation_name="GovTech")
+
+        self.teacher_user = UserFactory(username="teacher_req_list")
+        RequesterFactory(user=self.teacher_user, role="teacher", organisation_name="School A")
+
+        # Seed requesters
+        u1 = UserFactory(username="alice")
+        RequesterFactory(user=u1, role="teacher", organisation_name="School Alpha")
+
+        u2 = UserFactory(username="bob")
+        RequesterFactory(user=u2, role="employer", organisation_name="Company B")
+
+        u3 = UserFactory(username="charlie")
+        RequesterFactory(user=u3, role="doctor", organisation_name="Hospital X")
+
+    def test_requires_auth(self):
+        res = self.client.get(self.url)
+        self.assertIn(res.status_code, [401, 403])
+
+    def test_non_admin_forbidden(self):
+        self.client.force_authenticate(user=self.teacher_user)
+        res = self.client.get(self.url)
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_can_list(self):
+        self.client.force_authenticate(user=self.admin_user)
+        res = self.client.get(self.url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn("results", res.data)
+        self.assertGreaterEqual(res.data["count"], 3)
+
+    def test_admin_search_by_username(self):
+        self.client.force_authenticate(user=self.admin_user)
+        res = self.client.get(self.url, {"q": "alice"})
+        self.assertEqual(res.status_code, 200)
+        usernames = [x.get("username") for x in res.data["results"]]
+        self.assertIn("alice", usernames)
+
+    def test_admin_search_by_org(self):
+        self.client.force_authenticate(user=self.admin_user)
+        res = self.client.get(self.url, {"q": "Hospital"})
+        self.assertEqual(res.status_code, 200)
+        orgs = [x.get("organisation_name") for x in res.data["results"]]
+        self.assertTrue(any("Hospital" in (o or "") for o in orgs))
+
+    def test_admin_search_by_role(self):
+        self.client.force_authenticate(user=self.admin_user)
+        res = self.client.get(self.url, {"q": "doctor"})
+        self.assertEqual(res.status_code, 200)
+        roles = [x.get("role") for x in res.data["results"]]
+        self.assertIn("doctor", roles)
+
+    def test_pagination(self):
+        self.client.force_authenticate(user=self.admin_user)
+        res = self.client.get(self.url, {"page": 1, "page_size": 2})
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data["page"], 1)
+        self.assertEqual(res.data["page_size"], 2)
+        self.assertLessEqual(len(res.data["results"]), 2)

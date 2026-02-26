@@ -73,7 +73,7 @@ class RegisterSerializer(serializers.Serializer):
             sensitivity_level="low",
         )
 
-        return user
+        return person
 
 class AdminLegalNameUpsertSerializer(serializers.Serializer):
     person_id = serializers.IntegerField()

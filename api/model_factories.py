@@ -24,6 +24,10 @@ class PersonFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Person
 
+class PersonProfileFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = PersonProfile
+
 class NameRecordFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = NameRecord
