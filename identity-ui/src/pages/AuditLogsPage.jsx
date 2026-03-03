@@ -5,7 +5,7 @@ import "./AuditLogsPage.css";
 
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState([]);
-  const [count, setCount] = useState(0);
+  const [pageSize] = useState(20);
   const [filters, setFilters] = useState({
     decision: "",
     context: "",
@@ -15,6 +15,7 @@ export default function AuditLogsPage() {
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(null);
   const [openDetails, setOpenDetails] = useState(false);
+  const [data, setData] = useState({ count: 0, results: [] });
 
   function openRowDetails(row) {
     setSelected(row);
@@ -30,9 +31,10 @@ export default function AuditLogsPage() {
     try {
       const res = await api.get("/api/admin/audit-logs/", {
         params: { ...filters, page },
+        params: { ...filters, page, page_size: pageSize },
       });
       setLogs(res.data.results);
-      setCount(res.data.count);
+      setData(res.data);
     } catch {
       alert("Failed to load audit logs.");
     } finally {
@@ -44,6 +46,8 @@ export default function AuditLogsPage() {
     setPage(1);
     load();
   }
+
+  const totalPages = Math.max(1, Math.ceil((data.count || 0) / pageSize));
 
   return (
     <div className="audit-container">
@@ -120,14 +124,30 @@ export default function AuditLogsPage() {
       )}
 
       {/* Pagination */}
-      <div className="audit-pagination">
-        <button disabled={page === 1} onClick={() => setPage(page - 1)}>
-          Previous
-        </button>
-        <span>
-          Page {page} — {count} total logs
-        </span>
-        <button onClick={() => setPage(page + 1)}>Next</button>
+      <div className="persons-footer">
+        <div className="persons-muted">
+          Showing page {page} / {totalPages} — {data.count} total
+        </div>
+
+        <div className="persons-pager">
+          <button
+            className="persons-btn persons-btnSecondary"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            Prev
+          </button>
+          <button
+            className="persons-btn persons-btnSecondary"
+            disabled={page >= totalPages}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next
+          </button>
+          <button className="persons-btn" onClick={load}>
+            Refresh
+          </button>
+        </div>
       </div>
       <Modal
         open={openDetails}
