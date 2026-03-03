@@ -6,21 +6,37 @@ export default function useSessionMonitor() {
   const [showPrompt, setShowPrompt] = useState(false);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      const token = localStorage.getItem("access");
-      if (!token) return;
+    const token = localStorage.getItem("access");
+    if (!token) return;
 
-      const decoded = jwtDecode(token);
+    let warnTimer;
+    let logoutTimer;
+
+    try {
+      const { exp } = jwtDecode(token);
       const now = Date.now() / 1000;
+      const timeLeft = exp - now;
 
-      // If less than 120s left
-      if (decoded.exp - now < 120) {
-        setShowPrompt(true);
+      if (timeLeft <= 0) {
+        setShowPrompt(false);
+        logout();
+        return;
       }
-      // Check every 30s
-    }, 30000);
 
-    return () => clearInterval(interval);
+      // Warn 2 minutes before expiry
+      const warnMs = Math.max((timeLeft - 120) * 1000, 0);
+      warnTimer = setTimeout(() => setShowPrompt(true), warnMs);
+
+      // Auto logout on expiry
+      logoutTimer = setTimeout(() => logout(), timeLeft * 1000);
+    } catch {
+      logout();
+    }
+
+    return () => {
+      clearTimeout(warnTimer);
+      clearTimeout(logoutTimer);
+    };
   }, []);
 
   async function extendSession() {
@@ -28,6 +44,7 @@ export default function useSessionMonitor() {
       await refreshToken();
       setShowPrompt(false);
     } catch {
+      setShowPrompt(false);
       logout();
     }
   }

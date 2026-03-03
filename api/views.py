@@ -12,6 +12,7 @@ from .serializers import *
 from .services.abac import evaluate_abac
 from .services.audit import compute_audit_signature, build_audit_payload
 from django.core.exceptions import PermissionDenied
+from rest_framework_simplejwt.tokens import RefreshToken
 
 # Person list retrieval
 class AdminPersonListView(APIView):
@@ -467,3 +468,20 @@ class AdminPersonNameRecordsView(APIView):
             },
             status=status.HTTP_200_OK
         )
+
+# Logout
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        refresh = request.data.get("refresh")
+        if not refresh:
+            return Response({"detail": "Refresh token required"}, status=400)
+
+        try:
+            token = RefreshToken(refresh)
+            token.blacklist()
+        except Exception:
+            return Response({"detail": "Invalid token"}, status=400)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)

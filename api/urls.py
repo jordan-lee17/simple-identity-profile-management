@@ -10,6 +10,8 @@ urlpatterns = [
     # Token
     path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    # Logout
+    path("api/logout/", LogoutView.as_view(), name="logout"),
     # Register new user
     path("api/register/", RegisterView.as_view(), name="register-person"),
     # Profile for admin/requester

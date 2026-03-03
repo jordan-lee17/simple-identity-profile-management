@@ -10,9 +10,9 @@ export default function Shell() {
   const { showPrompt, extendSession, logout } = useSessionMonitor();
   const { me, loadingMe } = useMe();
 
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login", { replace: true });
   };
 
   const accountType = me?.account_type;
@@ -41,7 +41,13 @@ export default function Shell() {
         <div className="sidebar-title">Identity Admin</div>
 
         {showPrompt && (
-          <SessionExpiryModal onExtend={extendSession} onLogout={logout} />
+          <SessionExpiryModal
+            onExtend={extendSession}
+            onLogout={() => {
+              logout();                 
+              navigate("/login", { replace: true });
+            }}
+          />
         )}
 
         <nav className="shell-nav">

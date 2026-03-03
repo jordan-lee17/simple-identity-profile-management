@@ -6,7 +6,7 @@ export default function RequireAccountType({ allowedTypes, children }) {
 
   if (loadingMe) return <div style={{ padding: 16 }}>Loading…</div>;
 
-  if (!me?.account_type) return <Navigate to="/login" replace />;
+  if (!me) return <Navigate to="/login" replace />;
 
   if (!allowedTypes.includes(me.account_type)) {
     // If user tries to visit a page they can't access, send them to their home

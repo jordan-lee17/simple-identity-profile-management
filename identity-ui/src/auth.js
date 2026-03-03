@@ -12,10 +12,17 @@ export async function login(username, password) {
   return res.data;
 }
 
-export function logout() {
-  localStorage.removeItem("access");
-  localStorage.removeItem("refresh");
-  localStorage.removeItem("username");
+export async function logout() {
+  const refresh = localStorage.getItem("refresh");
+  try {
+    if (refresh) await api.post("/api/logout/", { refresh });
+  } catch {
+    // Ignore errors
+  } finally {
+    localStorage.removeItem("access");
+    localStorage.removeItem("refresh");
+    localStorage.removeItem("username");
+  }
 }
 
 export async function refreshToken() {
