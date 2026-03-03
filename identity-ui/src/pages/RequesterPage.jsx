@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/client";
-import "./RequesterPage.css";
 
 export default function PersonsPage() {
   const nav = useNavigate();

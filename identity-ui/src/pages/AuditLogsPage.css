@@ -1,33 +1,8 @@
-.audit-container {
-  background: #0f1a33;
-  padding: 20px;
-  border-radius: 14px;
-  border: 1px solid #1d2b50;
-}
-
 .audit-filters {
   display: flex;
   gap: 10px;
   margin-bottom: 15px;
   flex-wrap: wrap;
-}
-
-.audit-filters input,
-.audit-filters select {
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid #1d2b50;
-  background: #0b1220;
-  color: #e8eefc;
-}
-
-.audit-filters button {
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid #1d2b50;
-  background: #1b2a52;
-  color: #e8eefc;
-  cursor: pointer;
 }
 
 .audit-table {
@@ -38,7 +13,7 @@
 .audit-table th,
 .audit-table td {
   padding: 8px;
-  border-top: 1px solid #1d2b50;
+  border-top: 1px solid var(--border);
   font-size: 13px;
 }
 
@@ -89,5 +64,6 @@
 }
 
 .mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
 }

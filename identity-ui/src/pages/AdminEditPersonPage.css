@@ -2,7 +2,7 @@
   max-width: 1000px;
   margin: 0 auto;
   padding: 18px;
-  color: #e8eefc;
+  color: var(--text);
 }
 
 .admin-edit__header {
@@ -36,13 +36,6 @@
   }
 }
 
-.card {
-  background: #0f1a33;
-  border: 1px solid #1d2b50;
-  border-radius: 14px;
-  padding: 14px;
-}
-
 .card__head {
   display: flex;
   justify-content: space-between;
@@ -67,52 +60,20 @@
   opacity: 0.85;
 }
 
-.field__input {
-  width: 100%;
-  padding: 10px;
-  border-radius: 10px;
-  border: 1px solid #1d2b50;
-  background: #0b1220;
-  color: #e8eefc;
-  outline: none;
-}
-
-.muted {
-  font-size: 12px;
-  opacity: 0.8;
-}
-
 .alert {
   margin: 10px 0;
-  padding: 10px;
   border-radius: 12px;
-  border: 1px solid #1d2b50;
   font-size: 13px;
 }
 
 .alert--error {
-  background: #3a1313;
-  color: #ffb4b4;
+  background: var(--err-bg);
+  color: var(--err-text);
 }
 
 .alert--ok {
-  background: #123a22;
-  color: #b8ffd2;
-}
-
-.btn {
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid #1d2b50;
-  background: #1b2a52;
-  color: #e8eefc;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.btn:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
+  background: var(--ok-bg);
+  color: var(--ok-text);
 }
 
 .btn--ghost {
