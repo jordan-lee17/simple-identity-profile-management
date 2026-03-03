@@ -6,6 +6,8 @@ from .models import *
 from .model_factories import *
 from .services.abac import evaluate_abac
 from .services.audit import verify_audit_log_entry
+from rest_framework_simplejwt.tokens import RefreshToken
+from datetime import timedelta
 
 # Create your tests here.
 
@@ -522,6 +524,57 @@ class IdentityAPITests(APITestCase):
         self.assertEqual(response.status_code, 403)
         self.assertIn("denied_reason", response.data)
 
+# Test identity validation
+class IdentityValidationEdgeTests(APITestCase):
+    def setUp(self):
+        ContextPolicyFactory(
+            context_name="school",
+            required_role="teacher",
+            allowed_name_types=["preferred"],
+        )
+
+        self.person = PersonFactory()
+        NameRecordFactory(person=self.person, type="preferred", value="Jordan", sensitivity_level="low")
+
+        self.user = UserFactory(username="teacher_edge")
+        RequesterFactory(user=self.user, role="teacher", organisation_name="School A")
+
+        self.url = reverse("identity", kwargs={"person_id": self.person.id})
+        self.client.force_authenticate(user=self.user)
+
+    def test_missing_context_defaults_and_denies(self):
+        # No ?context= provided -> uses "default" -> no policy -> DENY 403
+        res = self.client.get(self.url)
+        self.assertEqual(res.status_code, 403)
+        self.assertEqual(res.data["context_used"], "default")
+        self.assertIn("denied_reason", res.data)
+        self.assertEqual(res.data["result"], {})
+
+        # audit log created
+        self.assertEqual(AuditLog.objects.count(), 1)
+        log = AuditLog.objects.first()
+        self.assertEqual(log.context_used, "default")
+        self.assertEqual(log.decision, "DENY")
+
+    def test_context_is_trimmed_and_lowercased(self):
+        res = self.client.get(self.url + "?context=  ScHoOl  ")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data["context_used"], "school")
+
+    def test_invalid_person_id_returns_404(self):
+        bad_url = reverse("identity", kwargs={"person_id": 999999})
+        res = self.client.get(bad_url + "?context=school")
+        self.assertEqual(res.status_code, 404)
+
+    def test_user_without_requester_gets_403(self):
+        # user has no requester profile
+        user2 = UserFactory(username="no_req")
+        self.client.force_authenticate(user=user2)
+
+        res = self.client.get(self.url + "?context=school")
+        self.assertEqual(res.status_code, 403)
+        self.assertIn("Requester profile not found", res.data.get("detail", ""))
+
 # Test profile creation and editing
 class ProfileAPITests(APITestCase):
     def setUp(self):
@@ -843,3 +896,75 @@ class AdminRequesterListTests(APITestCase):
         self.assertEqual(res.data["page"], 1)
         self.assertEqual(res.data["page_size"], 2)
         self.assertLessEqual(len(res.data["results"]), 2)
+
+# Test JWT authentication
+class IdentityJWTTests(APITestCase):
+    def setUp(self):
+        # Policy
+        ContextPolicyFactory(
+            context_name="school",
+            required_role="teacher",
+            allowed_name_types=["preferred"],
+        )
+
+        # Person + records
+        self.person = PersonFactory()
+        NameRecordFactory(person=self.person, type="preferred", value="Jordan", sensitivity_level="low")
+
+        # User + requester
+        self.user = UserFactory(username="jwt_teacher")
+        RequesterFactory(user=self.user, role="teacher", organisation_name="School A")
+
+        self.url = reverse("identity", kwargs={"person_id": self.person.id})
+
+    def set_bearer(self, token: str):
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+    def make_tokens(self, user):
+        refresh = RefreshToken.for_user(user)
+        return str(refresh.access_token), str(refresh)
+
+    def test_identity_works_with_valid_access_token(self):
+        access, _ = self.make_tokens(self.user)
+        self.set_bearer(access)
+
+        res = self.client.get(self.url + "?context=school")
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("preferred_name", res.data["result"])
+
+    def test_identity_rejects_missing_token(self):
+        res = self.client.get(self.url + "?context=school")
+        self.assertIn(res.status_code, [401, 403])
+
+    def test_identity_rejects_expired_access_token(self):
+        refresh = RefreshToken.for_user(self.user)
+        access = refresh.access_token
+
+        # Force token to be expired
+        access.set_exp(lifetime=timedelta(seconds=-1))
+
+        self.set_bearer(str(access))
+        res = self.client.get(self.url + "?context=school")
+
+        self.assertEqual(res.status_code, 401)
+
+# Test refresh token
+class JWTRefreshTests(APITestCase):
+    def setUp(self):
+        self.user = UserFactory(username="refresh_user")
+
+    def test_refresh_returns_new_access_token(self):
+        refresh = RefreshToken.for_user(self.user)
+
+        url = reverse("token_refresh")
+        res = self.client.post(url, {"refresh": str(refresh)}, format="json")
+
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("access", res.data)
+        self.assertTrue(isinstance(res.data["access"], str))
+
+    def test_refresh_with_invalid_token_returns_401(self):
+        url = reverse("token_refresh")
+        res = self.client.post(url, {"refresh": "not-a-real-token"}, format="json")
+
+        self.assertEqual(res.status_code, 401)
