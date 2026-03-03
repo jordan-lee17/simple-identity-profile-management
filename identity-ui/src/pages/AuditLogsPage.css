@@ -32,12 +32,6 @@
   font-weight: bold;
 }
 
-.audit-pagination {
-  margin-top: 15px;
-  display: flex;
-  justify-content: space-between;
-}
-
 .detailsGrid {
   display: grid;
   grid-template-columns: 180px 1fr;
