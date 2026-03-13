@@ -19,7 +19,7 @@ urlpatterns = [
     # Profile for user
     path("api/me/profile/", MyProfileView.as_view(), name="my-profile"),
     # Identity view
-    path("identity/<int:person_id>/", IdentityView.as_view(), name="identity"),
+    path("api/identity/<int:person_id>/", IdentityView.as_view(), name="identity"),
     # Admin requester list endpoint
     path("api/admin/requesters/", AdminRequesterListView.as_view(), name="admin-requester-list"),
     # Admin register requester

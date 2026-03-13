@@ -23,7 +23,7 @@ export default function PreviewPage() {
 
     try {
       const res = await api.get(
-        `/identity/${personId}/?context=${encodeURIComponent(context)}`
+        `api/identity/${personId}/?context=${encodeURIComponent(context)}`
       );
       setResult(res.data);
     } catch (err) {
