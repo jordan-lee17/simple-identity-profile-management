@@ -30,7 +30,6 @@ export default function AuditLogsPage() {
     setLoading(true);
     try {
       const res = await api.get("/api/admin/audit-logs/", {
-        params: { ...filters, page },
         params: { ...filters, page, page_size: pageSize },
       });
       setLogs(res.data.results);
