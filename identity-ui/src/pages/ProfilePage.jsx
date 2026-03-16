@@ -13,23 +13,26 @@ export default function ProfilePage() {
     // user only fields
     const [personId, setPersonId] = useState(null);
     const [updatedAt, setUpdatedAt] = useState(null);
+    const [legal, setLegal] = useState("");
     const [preferred, setPreferred] = useState("");
     const [professional, setProfessional] = useState("");
 
     async function loadMe() {
         const res = await api.get("/api/me/");
         setMe(res.data);
+        setUpdatedAt(res.data.person_profile.updated_at || null);
         return res.data;
     }
 
     async function loadPersonProfile() {
         const res = await api.get("/api/me/profile/");
         setPersonId(res.data.person_id);
-        setUpdatedAt(res.data.updated_at || null);
 
         const records = res.data.name_records || [];
+        const legal = records.find((r) => r.type === "legal")?.value || "";
         const pref = records.find((r) => r.type === "preferred")?.value || "";
         const prof = records.find((r) => r.type === "professional")?.value || "";
+        setLegal(legal);
         setPreferred(pref);
         setProfessional(prof);
     }
@@ -135,8 +138,13 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="field">
+                    <label>Legal name</label>
+                    <input className="previewInput" disabled value={legal} onChange={(e) => setPreferred(e.target.value)}/>
+                </div>
+
+                <div className="field">
                     <label>Preferred name</label>
-                    <input value={preferred} onChange={(e) => setPreferred(e.target.value)} />
+                    <input className="previewInput" value={preferred} onChange={(e) => setPreferred(e.target.value)} />
                     <button className="btn primary" onClick={() => save("preferred", preferred)} disabled={saving}>
                         Save preferred
                     </button>
@@ -144,7 +152,7 @@ export default function ProfilePage() {
 
                 <div className="field">
                     <label>Professional name</label>
-                    <input value={professional} onChange={(e) => setProfessional(e.target.value)} />
+                    <input className="previewInput" value={professional} onChange={(e) => setProfessional(e.target.value)} />
                     <button className="btn primary" onClick={() => save("professional", professional)} disabled={saving}>
                         Save professional
                     </button>

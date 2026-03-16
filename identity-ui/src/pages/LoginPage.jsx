@@ -19,7 +19,7 @@ export default function LoginPage() {
     try {
       await login(username, password);
       nav("/")
-    } catch {
+    } catch (err) {
       setErr("Login failed. Check username/password.");
     }
   }
