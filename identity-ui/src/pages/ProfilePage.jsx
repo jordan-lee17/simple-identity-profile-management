@@ -139,7 +139,7 @@ export default function ProfilePage() {
 
                 <div className="field">
                     <label>Legal name</label>
-                    <input className="previewInput" disabled value={legal} onChange={(e) => setPreferred(e.target.value)}/>
+                    <input className="previewInput" style={{ cursor: 'not-allowed' }} disabled value={legal} onChange={(e) => setPreferred(e.target.value)}/>
                 </div>
 
                 <div className="field">
